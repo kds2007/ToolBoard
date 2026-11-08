@@ -1,0 +1,4 @@
+@media(max-width:860px){.hero{grid-template-columns:1fr;min-height:0;padding-top:40px}.mock{transform:none}.nav .links{display:none}}
+@media(max-width:800px){.side{position:fixed;z-index:20;left:0;top:0;transform:translateX(-100%);box-shadow:var(--sh)}.side.open{transform:none}
+.burger{display:inline-block;background:var(--card);color:var(--tx);border:1px solid var(--bd);border-radius:9px;padding:6px 12px;font-size:18px}main{padding:14px}.who{display:none}.acts .btn{padding:7px 10px}}
+@media print{.noprint,.side,.top{display:none!important}body,.app{background:#fff;color:#000;display:block}.card,.wrap{box-shadow:none;border-color:#ccc;color:#000}th,td{color:#000}}
