@@ -21,7 +21,12 @@ $title = 'Iniciar sesión'; $f = flash();
 <?php if ($f): ?><div class="msg <?= e($f[1]) ?>"><?= e($f[0]) ?></div><?php endif; ?>
 <form method="post"><?= csrf_field() ?>
 <label>👤 Usuario <input name="usuario" required autofocus autocomplete="username"></label>
-<label>🔒 Contraseña <span class="pw"><input type="password" id="pw" name="clave" required autocomplete="current-password"><button type="button" class="btn s" data-pass="pw">Mostrar</button></span></label>
-<button class="btn">Iniciar sesión</button></form>
+<label style="display: block; width: 100%;">🔒 Contraseña 
+    <div style="display: flex; gap: 8px; width: 100%; margin-top: 4px; align-items: stretch;">
+        <input type="password" id="pw" name="clave" required autocomplete="current-password" style="flex: 1; width: 100%; min-width: 0;">
+        <button type="button" class="btn s" data-pass="pw" style="flex: 0 0 auto; width: auto; padding: 0 14px; margin: 0;">Mostrar</button>
+    </div>
+</label>
+<button class="btn" style="margin-top: 12px;">Iniciar sesión</button></form>
 <p class="alt">¿No tenés una cuenta? <a href="registro.php">Registrarse</a></p><a class="btn s" href="index.php" style="margin-top:8px">Volver al inicio</a></div></div>
 <script src="script.js"></script></body></html>
