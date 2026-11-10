@@ -4,15 +4,26 @@ require_once __DIR__ . '/config.php';
 header('Access-Control-Allow-Origin: ' . ALLOWED_ORIGIN);
 header('Access-Control-Allow-Headers: Content-Type, X-TB-Token');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Vary: Origin'); header('Content-Type: application/json; charset=utf-8');
+header('Vary: Origin');
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE); exit; }
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    header('Allow: POST, OPTIONS');
+    out(['error' => 'Método no permitido'], 405);
+}
 ini_set('session.use_strict_mode', '1'); ini_set('session.use_cookies', '0');
 $tok = $_SERVER['HTTP_X_TB_TOKEN'] ?? '';
 if (preg_match('/^[A-Za-z0-9,-]{16,128}$/', $tok)) session_id($tok);
 require_once __DIR__ . '/functions.php';
-function out($d, $c = 200) { http_response_code($c); echo json_encode($d, JSON_UNESCAPED_UNICODE); exit; }
 function need_admin() { if (!is_admin()) throw new Exception('Solo administradores'); }
-$in = json_decode(file_get_contents('php://input'), true) ?: [];
+try {
+    $in = json_decode((string)file_get_contents('php://input'), true, 512, JSON_THROW_ON_ERROR);
+    if (!is_array($in)) throw new JsonException('El cuerpo debe ser un objeto JSON');
+} catch (JsonException $x) {
+    out(['error' => 'JSON inválido'], 400);
+}
 $a = $in['a'] ?? '';
 $s = fn($k) => trim((string)($in[$k] ?? ''));
 try {
