@@ -1,36 +1,138 @@
+
 <?php
+
 require_once __DIR__ . '/database.php';
-if (session_status() === PHP_SESSION_NONE) session_start();
-function e($s) { return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8'); }
-function redirect($u) { header("Location: $u"); exit; }
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+function e($s) {
+    return htmlspecialchars((string)$s, ENT_QUOTES, 'UTF-8');
+}
+
+function redirect($u) {
+    $u = (string)$u;
+
+    if ($u === '' || preg_match('/[\r\n]/', $u)) {
+        $u = 'dashboard.php';
+    }
+
+    header('Location: ' . $u);
+    exit;
+}
+
 function flash($m = null, $t = 'ok') {
-    if ($m !== null) { $_SESSION['f'] = [$m, $t]; return; }
-    $f = $_SESSION['f'] ?? null; unset($_SESSION['f']); return $f;
+    if ($m !== null) {
+        $_SESSION['f'] = [$m, $t];
+        return;
+    }
+
+    $f = $_SESSION['f'] ?? null;
+    unset($_SESSION['f']);
+
+    return $f;
 }
-function csrf_field() { $_SESSION['t'] ??= bin2hex(random_bytes(16)); return '<input type="hidden" name="t" value="' . $_SESSION['t'] . '">'; }
-function csrf_check() { if (!hash_equals($_SESSION['t'] ?? '', $_POST['t'] ?? '')) { http_response_code(400); exit('Token inválido'); } }
-function q($sql, $p = []) { $s = db()->prepare($sql); $s->execute($p); return $s; }
-function fail($x) { flash($x instanceof PDOException ? 'Error de base de datos' : $x->getMessage(), 'err'); }
-function rollback() { if (db()->inTransaction()) db()->rollBack(); }
+
+function csrf_field() {
+    if (empty($_SESSION['t'])) {
+        $_SESSION['t'] = bin2hex(random_bytes(32));
+    }
+
+    return '<input type="hidden" name="t" value="' . e($_SESSION['t']) . '">';
+}
+
+function csrf_check() {
+    $sessionToken = $_SESSION['t'] ?? '';
+    $postToken = $_POST['t'] ?? '';
+
+    if (
+        !is_string($sessionToken) ||
+        !is_string($postToken) ||
+        $sessionToken === '' ||
+        $postToken === '' ||
+        !hash_equals($sessionToken, $postToken)
+    ) {
+        http_response_code(400);
+        exit('Token inválido');
+    }
+}
+
+function q($sql, $p = []) {
+    $s = db()->prepare($sql);
+    $s->execute($p);
+
+    return $s;
+}
+
+function fail($x) {
+    if ($x instanceof PDOException) {
+        error_log($x->getMessage());
+        flash('Error de base de datos', 'err');
+    } elseif ($x instanceof Throwable) {
+        error_log($x->getMessage());
+        flash('Ocurrió un error inesperado', 'err');
+    } else {
+        flash('Ocurrió un error inesperado', 'err');
+    }
+}
+
+function rollback() {
+    if (db()->inTransaction()) {
+        db()->rollBack();
+    }
+}
+
 function log_move($tipo, $desc, $hid = null) {
-    q('INSERT INTO historial(tipo,descripcion,herramienta_id,usuario_id) VALUES(?,?,?,?)', [$tipo, $desc, $hid, $_SESSION['uid'] ?? null]);
+    q(
+        'INSERT INTO historial(tipo,descripcion,herramienta_id,usuario_id) VALUES(?,?,?,?)',
+        [$tipo, $desc, $hid, $_SESSION['uid'] ?? null]
+    );
 }
+
 function tabla($r) {
-    if (!$r) { echo '<p>Sin datos.</p>'; return; }
+    if (!$r) {
+        echo '<p>Sin datos.</p>';
+        return;
+    }
+
     echo '<div class="wrap"><table><tr>';
-    foreach (array_keys($r[0]) as $k) echo '<th>' . e($k) . '</th>';
+
+    foreach (array_keys($r[0]) as $k) {
+        echo '<th>' . e($k) . '</th>';
+    }
+
     echo '</tr>';
-    foreach ($r as $x) { echo '<tr>'; foreach ($x as $v) echo '<td>' . e($v) . '</td>'; echo '</tr>'; }
+
+    foreach ($r as $x) {
+        echo '<tr>';
+
+        foreach ($x as $v) {
+            echo '<td>' . e($v) . '</td>';
+        }
+
+        echo '</tr>';
+    }
+
     echo '</table></div>';
 }
-function is_admin() { return ($_SESSION['rol'] ?? '') === 'admin'; }
-// Inicialización idempotente: agrega la columna "rol" si falta y crea admin/123 solo si no existe.
+
+function is_admin() {
+    return ($_SESSION['rol'] ?? '') === 'admin';
+}
+
 function ensure_admin(): void {
-    static $done = false; if ($done) return; $done = true;
+    static $done = false;
+
+    if ($done) {
+        return;
+    }
+
+    $done = true;
+
     try {
-        if (!q("SHOW COLUMNS FROM usuarios LIKE 'rol'")->fetch()) db()->exec("ALTER TABLE usuarios ADD rol ENUM('admin','usuario') NOT NULL DEFAULT 'usuario'");
-        if (!q("SELECT 1 FROM usuarios WHERE usuario='admin'")->fetch())
-            q("INSERT INTO usuarios(usuario,nombre,password_hash,rol) VALUES('admin','Administrador',?,'admin')", [password_hash('123', PASSWORD_DEFAULT)]);
-        else q("UPDATE usuarios SET rol='admin' WHERE usuario='admin' AND rol<>'admin'");
-    } catch (Throwable $x) { /* la BD aún no está importada: el login mostrará el error */ }
+        q("SELECT id FROM usuarios WHERE usuario = 'admin' LIMIT 1")->fetch();
+    } catch (Throwable $x) {
+        error_log($x->getMessage());
+    }
 }
